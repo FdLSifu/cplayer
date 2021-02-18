@@ -134,6 +134,10 @@ std::string* get_content(char* url,std::string* buf)
     CURL* curl = curl_easy_init();
     std::string surl = std::string(url).substr(0, std::string(url).size()-1);
     free(url);
+
+    if (surl.find("http") != 0)
+        error("get_content","url is not valid");
+
     if (curl)
     {
         curl_easy_setopt(curl, CURLOPT_URL, surl.c_str());
