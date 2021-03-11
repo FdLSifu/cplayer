@@ -128,8 +128,46 @@ static size_t read_curl_cb(void *contents, size_t size, size_t nmemb, void *user
     return size * nmemb;
 }
 
+#define TIMETYPE curl_off_t
+#define TIMEOPT CURLINFO_TOTAL_TIME_T
+
+struct myprogress {
+    TIMETYPE lastruntime; /* type depends on version, see above */ 
+    CURL *curl;
+};
+
+curl_off_t last = -10;
+static int xferinfo(void *p,
+        curl_off_t dltotal, curl_off_t dlnow,
+        curl_off_t ultotal, curl_off_t ulnow)
+{
+    struct myprogress *myp = (struct myprogress *)p;
+    CURL *curl = myp->curl;
+    TIMETYPE curtime = 0;
+
+    curl_easy_getinfo(curl, TIMEOPT, &curtime);
+    
+    if  (dltotal != 0)
+    {
+
+        int perc = 100*dlnow/dltotal;
+
+        if (perc - last > 5)
+        {
+            if (last == -10)
+                printf("Downloading ... ");
+            printf("%d%",perc);
+            printf("..");
+            last = perc;
+        }
+
+    }
+    return 0;
+}
+
 std::string* get_content(char* url,std::string* buf)
 {
+    struct myprogress prog;
     CURLcode res;
     CURL* curl = curl_easy_init();
     std::string surl = std::string(url).substr(0, std::string(url).size()-1);
@@ -140,9 +178,18 @@ std::string* get_content(char* url,std::string* buf)
 
     if (curl)
     {
+        prog.lastruntime = 0;
+        prog.curl = curl;
+
         curl_easy_setopt(curl, CURLOPT_URL, surl.c_str());
         curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, read_curl_cb);
         curl_easy_setopt(curl, CURLOPT_WRITEDATA, buf);
+
+        curl_easy_setopt(curl, CURLOPT_XFERINFOFUNCTION, xferinfo);
+        curl_easy_setopt(curl, CURLOPT_XFERINFODATA, &prog);
+
+        curl_easy_setopt(curl, CURLOPT_NOPROGRESS, 0L);
+
         res = curl_easy_perform(curl);
         curl_easy_cleanup(curl);
         if (res != 0)
