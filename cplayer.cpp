@@ -20,21 +20,25 @@ void launch_player(std::map<std::string,std::string>* playlist)
     FILE * ftmp = NULL;
     int pid = -1;
     char title[256] = {0};
-
+    std::string arg;
     while(1)
     {
+
+        // Create playlist file
         ftmp = fopen("/tmp/cplayer.tmp","w");
         for(it = playlist->begin(); it != playlist->end(); it++)
         {
-            fprintf(ftmp,it->first.c_str());
+            fprintf(ftmp,"%s",it->first.c_str());
             fprintf(ftmp,"\n");
         }
         fflush(ftmp);
         fclose(ftmp);
 
+        // feed fzf with the playlist
+	arg = std::string("cat /tmp/cplayer.tmp | fzf");
         if (title[0] != 0)
         {
-            std::string arg = std::string("cat /tmp/cplayer.tmp | fzf -q ");
+	    arg = std::string("cat /tmp/cplayer.tmp | fzf -q ");
             // Remove spaces
             int l = strlen(title);
             for(int i = l-1; i > 0; i--)
@@ -47,29 +51,32 @@ void launch_player(std::map<std::string,std::string>* playlist)
 
             // Build args
             arg+= std::string("'") + std::string(title) + std::string("'");
-            fzfp = popen(arg.c_str(),"r");
-        }
-        else
-        {
-            fzfp = popen("cat /tmp/cplayer.tmp | fzf","r");
-        }
 
+        }
+        fzfp = popen(arg.c_str(),"r");
+
+
+        // read the channel title
         memset(title,0,256);
         fgets(title,256,fzfp);
+
+        // close fzf process
         pclose(fzfp);
+
+        // clean playlist file
         std::remove("/tmp/cplayer.tmp");
 
+        // Format title
         stitle = std::string(title).substr(0, std::string(title).size()-1);
 
         // If parent kill previously launched mpv
         if (pid >=0)
         {
-
             kill(pid, SIGKILL);
             wait(NULL);
         }
        
-        // if no input, we exit 
+        // if no input, we exit, (ctrl c fzf for example) 
         if (stitle.length() == 0)
            break; 
 
@@ -81,12 +88,18 @@ void launch_player(std::map<std::string,std::string>* playlist)
         }
         if (pid == 0)
         {
+            // Launch video player in a child
+
             // Silent MPV
-            fclose(stdin);
-            fclose(stdout);
-            fclose(stderr);
-            execlp("mpv","mpv",(*playlist)[stitle].c_str(),NULL);
-            std::cout << "ERROR" << std::endl;
+            //fclose(stdin);
+            //fclose(stdout);
+            //fclose(stderr);
+
+	    char *video_player = (char*)"mpv";
+	    char *args[] = {video_player,(char*)(*playlist)[stitle].c_str(),NULL};
+            execvp(args[0],args);
+           	 
+	    perror("ERROR");
             exit(0);
         }
     }
@@ -156,7 +169,7 @@ static int xferinfo(void *p,
         {
             if (last == -10)
                 printf("Downloading ... ");
-            printf("%d%",perc);
+            printf("%d",perc);
             printf("..");
             last = perc;
         }
@@ -245,7 +258,6 @@ int main(int argc, char**argv)
         usage();
 
     char* fname = argv[1];
-
     std::cout << "Reading ..." << std::endl;
     char* url = readurl(&fname);
     
