@@ -11,6 +11,7 @@
 #include <sys/wait.h>
 
 void error(const char* fun, const char *msg);
+void warning(const char* fun, const char *msg);
 
 void launch_player(std::map<std::string,std::string>* playlist)
 {
@@ -24,6 +25,9 @@ void launch_player(std::map<std::string,std::string>* playlist)
     while(1)
     {
         ftmp = fopen("/tmp/cplayer.tmp","w");
+        if (ftmp == NULL)
+            error("launch_player","fail to open /tmp/cplayer.tmp");
+
         for(it = playlist->begin(); it != playlist->end(); it++)
         {
             fprintf(ftmp,it->first.c_str());
@@ -57,9 +61,13 @@ void launch_player(std::map<std::string,std::string>* playlist)
         memset(title,0,256);
         fgets(title,256,fzfp);
         pclose(fzfp);
-        std::remove("/tmp/cplayer.tmp");
+        if (std::remove("/tmp/cplayer.tmp") == -1)
+            error("launch_player","fail to remove /tmp/cplayer.tmp");
 
-        stitle = std::string(title).substr(0, std::string(title).size()-1);
+        if (std::string(title).size() > 1)
+            stitle = std::string(title).substr(0, std::string(title).size()-1);
+        else
+            stitle = std::string("");
 
         // If parent kill previously launched mpv
         if (pid >=0)
@@ -156,7 +164,7 @@ static int xferinfo(void *p,
         {
             if (last == -10)
                 printf("Downloading ... ");
-            printf("%d%",perc);
+            printf("%d",perc);
             printf("..");
             last = perc;
         }
@@ -228,11 +236,17 @@ char * readurl(char** fname)
     return buf;
 }
 
-void error(const char * fun, const char * msg)
+void warning(const char * fun, const char * msg)
 {
     std::cout << "Error in " << fun << ": " << msg << std::endl;
+}
+
+void error(const char * fun, const char * msg)
+{
+    warning(fun,msg);
     exit(-1);
 }
+
 void usage()
 {
     printf("Usage: cplayer url.txt\n");
