@@ -66,7 +66,6 @@ void launch_player(std::map<std::string,std::string>* playlist)
 
         // close fzf process
         pclose(fzfp);
-<<<<<<< HEAD
         if (std::remove("/tmp/cplayer.tmp") == -1)
             error("launch_player","fail to remove /tmp/cplayer.tmp");
 
@@ -74,14 +73,11 @@ void launch_player(std::map<std::string,std::string>* playlist)
             stitle = std::string(title).substr(0, std::string(title).size()-1);
         else
             stitle = std::string("");
-=======
-
         // clean playlist file
         std::remove("/tmp/cplayer.tmp");
 
         // Format title
         stitle = std::string(title).substr(0, std::string(title).size()-1);
->>>>>>> 2fd7c3b2ac2743f09fa37731226016e34e59d1cc
 
         // If parent kill previously launched mpv
         if (pid >=0)
