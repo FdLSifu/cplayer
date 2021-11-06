@@ -39,7 +39,7 @@ void launch_player(std::map<std::string,std::string>* playlist)
         fclose(ftmp);
 
         // feed fzf with the playlist
-	arg = std::string("cat /tmp/cplayer.tmp | fzf");
+	arg = std::string("cat /tmp/cplayer.tmp | fzf -i");
         if (title[0] != 0)
         {
 	    arg = std::string("cat /tmp/cplayer.tmp | fzf -q ");
@@ -101,7 +101,7 @@ void launch_player(std::map<std::string,std::string>* playlist)
             // Launch video player in a child
 
             // Silent MPV
-            //fclose(stdin);
+            fclose(stdin);
             //fclose(stdout);
             //fclose(stderr);
 
