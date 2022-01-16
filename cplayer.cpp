@@ -18,68 +18,77 @@ void warning(const char* fun, const char *msg);
 void launch_player(std::map<std::string,std::string>* playlist)
 {
     std::map<std::string,std::string>::iterator it;
-    std::string stitle;
+    std::string title("");
     FILE * fzfp = NULL;
-    FILE * ftmp = NULL;
+    std::fstream ftmp;
     int pid = -1;
-    char title[256] = {0};
+    std::string query;
     std::string arg;
+    std::string sfzf;
     while(1)
     {
 
         // Create playlist file
-        ftmp = fopen("/tmp/cplayer.tmp","w");
-        if (ftmp == NULL)
+        ftmp = std::fstream("/tmp/cplayer.tmp",std::ios_base::out);
+        if (!ftmp.is_open())
             error("launch_player","fail to open /tmp/cplayer.tmp");
 
         for(it = playlist->begin(); it != playlist->end(); it++)
         {
-            fprintf(ftmp,"%s",it->first.c_str());
-            fprintf(ftmp,"\n");
+            ftmp << it->first << std::endl;
         }
-        fflush(ftmp);
-        fclose(ftmp);
+        ftmp.close();
 
         // feed fzf with the playlist
-	arg = std::string("cat /tmp/cplayer.tmp | fzf -i");
+	arg = std::string("cat /tmp/cplayer.tmp | fzf --print-query -i");
         if (title[0] != 0)
         {
-	    arg = std::string("cat /tmp/cplayer.tmp | fzf -q ");
-            // Remove spaces
-            int l = strlen(title);
-            for(int i = l-1; i > 0; i--)
-            {
-                if ( (title[i] < 0x20)  || (title[i] > 0x7e))
-                    title[i] = 0;
-                else
-                    break;
-            }
-
             // Build args
-            arg+= std::string("'") + std::string(title) + std::string("'");
-
+	    arg = std::string("cat /tmp/cplayer.tmp | fzf --print-query -q ");
+            arg+= std::string("\"") + query + std::string("\"");
         }
         fzfp = popen(arg.c_str(),"r");
+        sfzf.resize(256);
+        memset(&sfzf[0],0,256);
+        size_t count = fread(&sfzf[0],1,256,fzfp);
+        size_t i = 0;
+        while(count > 0)
+        {
+            i += count;
+            sfzf.resize(i + 256);
+            memset(&sfzf[i],0,256);
+            count = fread(&sfzf[i],1,256,fzfp);
+        }
 
 
-        // read the channel title
-        memset(title,0,256);
-        fgets(title,256,fzfp);
-
-        // close fzf process
+        size_t pos = sfzf.find("\n");
+        if (pos != -1)
+        {
+            query = sfzf.substr(0,pos);
+            size_t pos_end = sfzf.find("\n",pos+1);
+            if (pos_end != -1)
+            {
+                title = sfzf.substr(pos+1,pos_end-pos-1);
+            }
+            else
+            {
+                title = "";
+            }
+ 
+        }
+        else
+        {
+            query = "";
+            title = "";
+        }
+       // close fzf process
         pclose(fzfp);
+        
         if (std::remove("/tmp/cplayer.tmp") == -1)
             error("launch_player","fail to remove /tmp/cplayer.tmp");
 
-        if (std::string(title).size() > 1)
-            stitle = std::string(title).substr(0, std::string(title).size()-1);
-        else
-            stitle = std::string("");
         // clean playlist file
         std::remove("/tmp/cplayer.tmp");
-
-        // Format title
-        stitle = std::string(title).substr(0, std::string(title).size()-1);
 
         // If parent kill previously launched mpv
         if (pid >=0)
@@ -89,7 +98,7 @@ void launch_player(std::map<std::string,std::string>* playlist)
         }
        
         // if no input, we exit, (ctrl c fzf for example) 
-        if (stitle.length() == 0)
+        if ( (query.length() == 0) && (title.length() == 0) )
         {
             std::cout << "Do you want to exit [y/N]? ";
             char ans = 'N';
@@ -107,16 +116,16 @@ void launch_player(std::map<std::string,std::string>* playlist)
         if (pid == 0)
         {
             // Launch video player in a child
-
+	    char *video_player = (char*)"mpv";
+	    char *args[] = {video_player,(char*)(*playlist)[title].c_str(),NULL};
+            
             // Silent MPV
             fclose(stdin);
             fclose(stdout);
             fclose(stderr);
-
-	    char *video_player = (char*)"mpv";
-	    char *args[] = {video_player,(char*)(*playlist)[stitle].c_str(),NULL};
+            system("notify-send \"mpv launching ...\"");
             execvp(args[0],args);
-           	 
+            system("notify-send \"mpv error!\""); 
 	    perror("ERROR");
             exit(0);
         }
