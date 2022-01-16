@@ -123,9 +123,9 @@ void launch_player(std::map<std::string,std::string>* playlist)
             fclose(stdin);
             fclose(stdout);
             fclose(stderr);
-            system("notify-send \"mpv launching ...\"");
+            int ret = system("notify-send \"mpv launching ...\"");
             execvp(args[0],args);
-            system("notify-send \"mpv error!\""); 
+            ret = system("notify-send \"mpv error!\""); 
 	    perror("ERROR");
             exit(0);
         }
