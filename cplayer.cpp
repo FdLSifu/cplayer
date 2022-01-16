@@ -88,7 +88,13 @@ void launch_player(std::map<std::string,std::string>* playlist)
        
         // if no input, we exit, (ctrl c fzf for example) 
         if (stitle.length() == 0)
-           break; 
+        {
+            std::cout << "Do you want to exit [y/N]? ";
+            char ans = 'N';
+            std::cin>>ans;
+            if ((ans == 'y') || (ans == 'Y'))
+                break;
+        }
 
         // Fork to launch a child mpv
         pid = fork();
