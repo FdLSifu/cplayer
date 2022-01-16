@@ -102,8 +102,8 @@ void launch_player(std::map<std::string,std::string>* playlist)
 
             // Silent MPV
             fclose(stdin);
-            //fclose(stdout);
-            //fclose(stderr);
+            fclose(stdout);
+            fclose(stderr);
 
 	    char *video_player = (char*)"mpv";
 	    char *args[] = {video_player,(char*)(*playlist)[stitle].c_str(),NULL};
@@ -130,13 +130,25 @@ void *parse(std::string* raw_playlist, std::map<std::string,std::string> *playli
         line = raw_playlist->substr(prev,pos-prev);
         if (get_url)
         {
+            size_t pos = line.find('\r');
+            if (pos != -1)
+            {
+                line = line.replace(pos,1,"");
+            }
             (*playlist)[title] = line;
             get_url = 0;
         }
         else if (line.find("#EXTINF") != std::string::npos)
         {
-            size_t pos_t = line.find_last_of(",");
-            title = line.substr(pos_t+1);
+            title = "[";
+            size_t pos_t = line.find("group-title=");
+            size_t pos2_t = line.find('"',pos_t+13);
+            title += line.substr(pos_t+13,pos2_t-pos_t-13);
+            title += "] ";
+
+            pos_t = line.find("tvg-name=");
+            pos2_t = line.find('"',pos_t+10);
+            title += line.substr(pos_t+10,pos2_t-pos_t-10);
             get_url = 1;
         }
         prev = pos+1;
@@ -174,16 +186,17 @@ static int xferinfo(void *p,
     {
 
         int perc = 100*dlnow/dltotal;
-
-        if (perc - last > 5)
         {
             if (last == -10)
-                printf("Downloading ... ");
-            printf("%d",perc);
-            printf("..");
+                printf("Downloading:     ");
+            else if (perc > 99)
+                printf("\b");
+            printf("\b\b\b");
+            printf("%.2d",perc);
+            printf("%c",'%');
+            fflush(NULL);
             last = perc;
         }
-
     }
     return 0;
 }
@@ -281,7 +294,7 @@ int main(int argc, char**argv)
     std::string raw_playlist;
     get_content(url,&raw_playlist);
     
-    std::cout << "Parsing ..." << std::endl;
+    std::cout << "\nParsing ..." << std::endl;
     std::map<std::string,std::string> playlist;
     parse(&raw_playlist,&playlist);
     
