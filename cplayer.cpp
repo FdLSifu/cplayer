@@ -9,6 +9,8 @@
 #include <sys/types.h>
 #include <csignal>
 #include <sys/wait.h>
+#include <fstream>
+#include <iomanip>
 
 void error(const char* fun, const char *msg);
 void warning(const char* fun, const char *msg);
@@ -209,6 +211,19 @@ static int xferinfo(void *p,
 
 std::string* get_content(char* url,std::string* buf)
 {
+    std::stringstream sfncache;
+    std::string basecache = "/tmp/cplayer.cache";
+    std::size_t hash = std::hash<std::string>{}(url);
+    sfncache << basecache << "_" << hash;
+    std::string fncache(sfncache.str());
+
+    std::ifstream ifs(fncache);
+    if(ifs.is_open()){
+        std::string content( (std::istreambuf_iterator<char>(ifs) ),
+                (std::istreambuf_iterator<char>()    ) );
+        *buf += content;
+        return buf;
+    }
     struct myprogress prog;
     CURLcode res;
     CURL* curl = curl_easy_init();
@@ -236,6 +251,13 @@ std::string* get_content(char* url,std::string* buf)
         curl_easy_cleanup(curl);
         if (res != 0)
             error("get_content","unable to download playlist");
+        else
+        {
+            std::ofstream ofs(fncache,std::ios_base::binary);
+            ofs << *buf;
+            ofs.close();
+        }
+
     }
     else
         error("get_content","unable to initialize curl");
